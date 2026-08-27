@@ -65,6 +65,10 @@ export async function createFirebaseStore(config) {
   async function signIn() {
     const provider = new authSdk.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
+    if (window.matchMedia("(max-width: 760px)").matches) {
+      await authSdk.signInWithRedirect(auth, provider);
+      return null;
+    }
     try {
       const credential = await authSdk.signInWithPopup(auth, provider);
       return sessionFromUser(credential.user);
@@ -130,3 +134,4 @@ export async function createFirebaseStore(config) {
 
   return { signIn, restoreSession, loadWorkspace, logout };
 }
+
