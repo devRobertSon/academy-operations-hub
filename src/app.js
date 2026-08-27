@@ -18,6 +18,7 @@ const state = {
   studentStatus: "all",
   selectedStudentId: null,
   store: null,
+  firebaseReady: null,
   importPreview: null,
   data: emptyData()
 };
@@ -67,8 +68,7 @@ async function bootstrap() {
     await openWorkspace(demoUsers[demoRole]);
   } else if (isFirebaseConfigured()) {
     try {
-      state.store = await createFirebaseStore(appConfig.firebase);
-      const restored = await state.store.restoreSession();
+      const restored = await ensureFirebaseReady();
       if (restored) await openWorkspace(restored);
     } catch (error) {
       setLoginStatus(error.message || "Firebase 연결을 확인해 주세요.");
@@ -82,10 +82,16 @@ async function bootstrap() {
 
 function bindStaticEvents() {
   elements.loginButton.addEventListener("click", async () => {
-    if (!state.store) return;
     try {
+      setLoginStatus("Google 로그인을 준비하고 있습니다.", false);
+      const restored = await ensureFirebaseReady();
+      if (restored) {
+        await openWorkspace(restored);
+        return;
+      }
       setLoginStatus("Google 계정을 확인하고 있습니다.", false);
-      await openWorkspace(await state.store.signIn());
+      const user = await state.store.signIn();
+      if (user) await openWorkspace(user);
     } catch (error) {
       setLoginStatus(error.message || "로그인하지 못했습니다.");
     }
@@ -104,6 +110,23 @@ function bindStaticEvents() {
   elements.content.addEventListener("click", handleContentClick);
   elements.content.addEventListener("input", handleContentInput);
   elements.content.addEventListener("change", handleContentChange);
+}
+
+async function ensureFirebaseReady() {
+  if (!state.firebaseReady) {
+    state.firebaseReady = (async () => {
+      state.store = await createFirebaseStore(appConfig.firebase);
+      return state.store.restoreSession();
+    })();
+  }
+
+  try {
+    return await state.firebaseReady;
+  } catch (error) {
+    state.store = null;
+    state.firebaseReady = null;
+    throw error;
+  }
 }
 
 function loadDemoData() {
