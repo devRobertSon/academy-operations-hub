@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Documents and raw imports are not stored in Firebase Storage in phase 1.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

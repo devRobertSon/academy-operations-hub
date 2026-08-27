@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="학생, 수업, 평가, 진도와 입학 상담을 관리하는 학원 운영 포털" />
+    <meta name="color-scheme" content="light" />
+    <title>Academy Operations Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  </head>
+  <body>
+    <div id="app" aria-live="polite">
+      <section id="login-view" class="login-view">
+        <div class="login-panel">
+          <div class="brand-lockup">
+            <span class="brand-mark" aria-hidden="true">AO</span>
+            <div>
+              <strong>Academy Operations Hub</strong>
+              <span id="login-academy-name">학원 운영 포털</span>
+            </div>
+          </div>
+          <div class="login-copy">
+            <p class="eyebrow">학사 운영</p>
+            <h1>학생과 수업의 기록을 이어서 관리합니다.</h1>
+            <p>등록된 Google 계정으로 로그인해 주세요.</p>
+          </div>
+          <button id="google-login" class="button button-primary button-wide" type="button">
+            <span class="google-g" aria-hidden="true">G</span>
+            Google 계정으로 로그인
+          </button>
+          <p id="login-status" class="form-status" role="status"></p>
+          <div class="login-links">
+            <a href="./privacy.html">개인정보처리방침</a>
+            <a href="./terms.html">서비스 약관</a>
+          </div>
+        </div>
+        <aside class="login-aside" aria-label="업무 영역">
+          <div class="aside-content">
+            <span class="aside-icon" aria-hidden="true"><i data-lucide="school"></i></span>
+            <p>학원 운영 포털</p>
+            <dl>
+              <div><dt>학사</dt><dd>학생 · 수업 · 평가</dd></div>
+              <div><dt>상담</dt><dd>진단 · 상담 · 로드맵</dd></div>
+              <div><dt>급여</dt><dd>별도 보안 포털</dd></div>
+            </dl>
+          </div>
+        </aside>
+      </section>
+
+      <div id="workspace" class="workspace" hidden>
+        <aside class="sidebar">
+          <div class="sidebar-brand">
+            <span class="brand-mark brand-mark-small" aria-hidden="true">AO</span>
+            <div><strong>학원 운영</strong><span id="sidebar-academy-name">학원 운영 포털</span></div>
+          </div>
+          <nav id="main-nav" class="main-nav" aria-label="주요 메뉴"></nav>
+          <a id="payroll-link" class="payroll-link" href="https://payroll.robertson.kr/">
+            <i data-lucide="external-link" aria-hidden="true"></i>
+            급여 관리
+          </a>
+          <div class="sidebar-user">
+            <span id="user-avatar" class="avatar">관</span>
+            <div><strong id="user-name">관리자</strong><span id="user-role">학사 관리자</span></div>
+            <button id="logout-button" class="icon-button" type="button" title="로그아웃" aria-label="로그아웃">
+              <i data-lucide="log-out" aria-hidden="true"></i>
+            </button>
+          </div>
+        </aside>
+
+        <main class="main-content">
+          <header class="topbar">
+            <button id="mobile-menu" class="icon-button mobile-menu" type="button" title="메뉴 열기" aria-label="메뉴 열기">
+              <i data-lucide="menu" aria-hidden="true"></i>
+            </button>
+            <div>
+              <p id="page-eyebrow" class="eyebrow">학사 운영</p>
+              <h1 id="page-title">운영 현황</h1>
+            </div>
+            <div id="topbar-actions" class="topbar-actions"></div>
+          </header>
+          <div id="page-content" class="page-content"></div>
+        </main>
+      </div>
+    </div>
+
+    <div id="modal-root"></div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

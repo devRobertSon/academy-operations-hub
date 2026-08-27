@@ -1,0 +1,167 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function activeUser() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().status == 'active';
+    }
+
+    function hasRole(role) {
+      return activeUser() && role in profile().roles;
+    }
+
+    function isAcademicAdmin() {
+      return hasRole('academic_admin');
+    }
+
+    function isCounselor() {
+      return hasRole('counselor');
+    }
+
+    function isTeacher() {
+      return hasRole('teacher');
+    }
+
+    function assignedClass(classId) {
+      return isTeacher()
+        && exists(/databases/$(database)/documents/classes/$(classId))
+        && request.auth.uid in get(/databases/$(database)/documents/classes/$(classId)).data.teacherUids;
+    }
+
+    match /users/{uid} {
+      allow read: if activeUser() && (request.auth.uid == uid || isAcademicAdmin());
+      allow create, update, delete: if isAcademicAdmin();
+    }
+
+    match /accessRequests/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAcademicAdmin());
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'status', 'requestedAt']);
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.status == 'rejected'
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'status', 'requestedAt']);
+      allow update, delete: if isAcademicAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAcademicAdmin()
+        || isCounselor()
+        || (isTeacher() && request.auth.uid in resource.data.activeTeacherUids);
+      allow create, update, delete: if isAcademicAdmin();
+    }
+
+    match /studentPrivate/{studentId} {
+      allow read, create, update: if isAcademicAdmin() || isCounselor();
+      allow delete: if isAcademicAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if isAcademicAdmin()
+        || isCounselor()
+        || (isTeacher() && request.auth.uid in resource.data.teacherUids);
+      allow create, update, delete: if isAcademicAdmin();
+    }
+
+    match /enrollments/{enrollmentId} {
+      allow read: if isAcademicAdmin()
+        || isCounselor()
+        || (isTeacher() && request.auth.uid in resource.data.teacherUids);
+      allow create, update, delete: if isAcademicAdmin();
+    }
+
+    match /assessmentDefinitions/{assessmentId} {
+      allow read: if isAcademicAdmin()
+        || isCounselor()
+        || assignedClass(resource.data.classId);
+      allow create, update, delete: if isAcademicAdmin();
+    }
+
+    match /assessmentResults/{resultId} {
+      allow read: if isAcademicAdmin()
+        || isCounselor()
+        || (isTeacher() && resource.data.teacherUid == request.auth.uid);
+      allow create: if isAcademicAdmin()
+        || (assignedClass(request.resource.data.classId)
+          && request.resource.data.teacherUid == request.auth.uid
+          && request.resource.data.createdBy == request.auth.uid);
+      allow update: if isAcademicAdmin()
+        || (assignedClass(resource.data.classId)
+          && resource.data.teacherUid == request.auth.uid
+          && request.resource.data.teacherUid == resource.data.teacherUid
+          && request.resource.data.classId == resource.data.classId
+          && request.resource.data.studentId == resource.data.studentId);
+      allow delete: if isAcademicAdmin();
+    }
+
+    match /progressRecords/{recordId} {
+      allow read: if isAcademicAdmin()
+        || isCounselor()
+        || (isTeacher() && resource.data.teacherUid == request.auth.uid);
+      allow create: if isAcademicAdmin()
+        || (assignedClass(request.resource.data.classId)
+          && request.resource.data.teacherUid == request.auth.uid
+          && request.resource.data.createdBy == request.auth.uid);
+      allow update: if isAcademicAdmin()
+        || (assignedClass(resource.data.classId)
+          && resource.data.teacherUid == request.auth.uid
+          && request.resource.data.teacherUid == resource.data.teacherUid
+          && request.resource.data.classId == resource.data.classId
+          && request.resource.data.studentId == resource.data.studentId);
+      allow delete: if isAcademicAdmin();
+    }
+
+    match /consultations/{consultationId} {
+      allow read, create, update: if isAcademicAdmin() || isCounselor();
+      allow delete: if isAcademicAdmin();
+    }
+
+    match /diagnosticResults/{resultId} {
+      allow read, create, update: if isAcademicAdmin() || isCounselor();
+      allow delete: if isAcademicAdmin();
+    }
+
+    match /roadmapPlans/{planId} {
+      allow read, create, update: if isAcademicAdmin() || isCounselor();
+      allow delete: if isAcademicAdmin();
+    }
+
+    match /importBatches/{batchId} {
+      allow read, create, update, delete: if isAcademicAdmin();
+    }
+
+    match /externalMappings/{mappingId} {
+      allow read, create, update, delete: if isAcademicAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAcademicAdmin();
+      allow create: if activeUser()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

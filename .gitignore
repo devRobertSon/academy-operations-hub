@@ -1,0 +1,18 @@
+node_modules/
+.DS_Store
+Thumbs.db
+.firebase/
+firebase-debug.log*
+.env
+.env.*
+!.env.example
+
+# Student and consultation exports must never be committed.
+data/
+imports/
+exports/
+*.csv
+*.xlsx
+*.xls
+*.pdf
+*.zip
