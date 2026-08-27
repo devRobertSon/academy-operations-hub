@@ -7,7 +7,7 @@ import {
   demoProgressRecords,
   demoStudents,
   demoUsers
-} from "./data/demo-data.js";
+} from "./data/demo-data.js?v=20260827-2";
 import { buildEduokImportPreview } from "./lib/eduok-import.js";
 import { createFirebaseStore } from "./lib/firebase-store.js";
 
