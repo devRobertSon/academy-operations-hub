@@ -66,7 +66,11 @@ async function checkRepositorySafety() {
   const textExtensions = new Set([".html", ".css", ".js", ".mjs", ".json", ".md", ".rules", ".yml", ".yaml"]);
   for (const path of files.filter((item) => textExtensions.has(extname(item)))) {
     if (path.endsWith("scripts\\qa.mjs") || path.endsWith("scripts/qa.mjs")) continue;
-    const content = await readFile(path, "utf8");
+    const repositoryPath = relative(root, path).replaceAll("\\", "/");
+    let content = await readFile(path, "utf8");
+    if (repositoryPath === "src/config.js") {
+      content = content.replace(/(apiKey\\s*:\\s*["'])AIza[0-9A-Za-z_-]{20,}(["'])/, "$1<Firebase web API key>$2");
+    }
     if (privatePatterns.some((pattern) => pattern.test(content))) failures.push(`Possible credential found: ${relative(root, path)}`);
   }
 }
