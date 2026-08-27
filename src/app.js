@@ -1,4 +1,4 @@
-import { appConfig, isFirebaseConfigured } from "./config.js";
+import { appConfig, isFirebaseConfigured } from "./config.js?v=20260827-1";
 import {
   demoAssessmentResults,
   demoClasses,
