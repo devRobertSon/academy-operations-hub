@@ -9,7 +9,7 @@ import {
   demoUsers
 } from "./data/demo-data.js?v=20260827-2";
 import { buildEduokImportPreview } from "./lib/eduok-import.js";
-import { createFirebaseStore } from "./lib/firebase-store.js";
+import { createFirebaseStore } from "./lib/firebase-store.js?v=20260827-3";
 
 const state = {
   user: null,
