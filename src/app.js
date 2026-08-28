@@ -7,7 +7,7 @@ import {
   demoProgressRecords,
   demoStudents,
   demoUsers
-} from "./data/demo-data.js?v=20260827-2";
+} from "./data/demo-data.js?v=20260828-1";
 import { buildEduokImportPreview } from "./lib/eduok-import.js";
 import { createFirebaseStore } from "./lib/firebase-store.js?v=20260828-1";
 
@@ -17,6 +17,7 @@ const state = {
   search: "",
   studentStatus: "all",
   selectedStudentId: null,
+  selectedConsultationId: null,
   store: null,
   firebaseReady: null,
   importPreview: null,
@@ -301,8 +302,8 @@ function renderAdmissions() {
       ${metric("등록 전환", "0명", "이번 달")}
     </div>
     <section class="section"><div class="section-header"><div><h2 class="section-title">상담 목록</h2><span class="section-meta">진단평가와 추천 반</span></div></div>
-      <div class="data-panel"><div class="table-scroll"><table class="data-table"><thead><tr><th>상담 학생</th><th>학년</th><th>상담일</th><th>진단평가</th><th>추천 반</th><th>상태</th></tr></thead><tbody>
-        ${state.data.consultations.length ? state.data.consultations.map((item) => `<tr><td><strong>${e(item.applicantName)}</strong></td><td>${e(item.grade)}</td><td>${e(item.consultedAt)}</td><td>${e(item.diagnosticLabel)}</td><td>${e(item.recommendedClass)}</td><td>${statusBadge(item.status)}</td></tr>`).join("") : `<tr><td colspan="6" class="empty-state">등록된 상담이 없습니다.</td></tr>`}
+      <div class="data-panel"><div class="table-scroll"><table class="data-table"><thead><tr><th>상담 학생</th><th>학년</th><th>목표 학교</th><th>상담일</th><th>진단평가</th><th>추천 반</th><th>상태</th></tr></thead><tbody>
+        ${state.data.consultations.length ? state.data.consultations.map((item) => `<tr><td><strong>${e(item.applicantName)}</strong></td><td>${e(item.grade)}</td><td>${e(item.targetSchool || "미정")}</td><td>${e(item.consultedAt)}</td><td>${e(item.diagnosticLabel)}</td><td>${e(item.recommendedClass)}</td><td>${statusBadge(item.status)}</td></tr>`).join("") : `<tr><td colspan="7" class="empty-state">등록된 상담이 없습니다.</td></tr>`}
       </tbody></table></div></div>
     </section>
   `;
@@ -311,12 +312,27 @@ function renderAdmissions() {
 function renderTimetable() {
   if (!hasRole("academic_admin") && !hasRole("counselor")) return renderDashboard();
   setPage("입학 · 배정", "시간표 · 로드맵");
+  const consultations = [...state.data.consultations].sort((a, b) => String(b.consultedAt || "").localeCompare(String(a.consultedAt || "")));
+  if (!state.selectedConsultationId || !consultations.some((item) => item.id === state.selectedConsultationId)) {
+    state.selectedConsultationId = consultations[0]?.id || null;
+  }
+  const consultation = consultations.find((item) => item.id === state.selectedConsultationId);
+  if (!consultation) {
+    elements.content.innerHTML = `<div class="notice"><i data-lucide="info" aria-hidden="true"></i><span>입학 상담을 먼저 등록하면 목표 학교와 현재 진도를 바탕으로 로드맵과 맞춤 시간표를 생성합니다.</span></div>`;
+    return;
+  }
+  const recommendation = buildRecommendation(consultation, state.data.classes);
   elements.content.innerHTML = `
-    <div class="notice"><i data-lucide="info" aria-hidden="true"></i><span>시간표 원본과 반 배정 기준을 받은 뒤 진단 결과, 수업 시간, 정원과 선수 단계를 함께 계산합니다.</span></div>
-    <section class="section"><div class="section-header"><div><h2 class="section-title">개설 시간표</h2><span class="section-meta">로드맵 배정 기준</span></div></div>
-      <div class="data-panel"><div class="table-scroll"><table class="data-table"><thead><tr><th>반</th><th>수업 시간</th><th>선생님</th><th>정원</th><th>배정 가능</th></tr></thead><tbody>
-        ${state.data.classes.map((item) => `<tr><td><strong>${e(item.name)}</strong></td><td>${e(item.schedule)}</td><td>${e((item.teacherNames || []).join(", "))}</td><td>${e(item.studentCount)} / ${e(item.capacity)}</td><td>${item.studentCount < item.capacity ? `<span class="badge success">가능</span>` : `<span class="badge warning">검토</span>`}</td></tr>`).join("")}
-      </tbody></table></div></div>
+    <section class="roadmap-control">
+      <label class="field"><span>상담 학생</span><select id="roadmap-consultation" class="select">${consultations.map((item) => `<option value="${e(item.id)}" ${item.id === consultation.id ? "selected" : ""}>${e(item.applicantName)} · ${e(item.targetSchool || "목표 미정")}</option>`).join("")}</select></label>
+      <div class="roadmap-student-summary"><div><span>현재 학년</span><strong>${e(consultation.grade || "미정")}</strong></div><div><span>목표 학교</span><strong>${e(consultation.targetSchool || "미정")}</strong></div><div><span>수학 진도</span><strong>${e(consultation.mathProgress || "미등록")}</strong></div><div><span>과학 진도</span><strong>${e(consultation.scienceProgress || "미등록")}</strong></div></div>
+    </section>
+    <div class="recommendation-banner"><i data-lucide="sparkles" aria-hidden="true"></i><div><strong>${e(consultation.targetSchool || "목표 학교")} 준비 과정 ${recommendation.courses.length}개를 자동 선택했습니다.</strong><span>${recommendation.subjects.map((item) => e(item)).join(" · ") || "목표 학교를 지정하면 필요한 과목이 표시됩니다."}</span></div></div>
+    <section class="section"><div class="section-header"><div><h2 class="section-title">합격 준비 로드맵</h2><span class="section-meta">현재 진도 이후의 개설 과정</span></div></div>
+      ${roadmapMarkup(recommendation)}
+    </section>
+    <section class="section"><div class="section-header"><div><h2 class="section-title">맞춤형 주간 시간표</h2><span class="section-meta">자동 선택된 개설 수업의 실제 시간</span></div></div>
+      ${weeklyScheduleMarkup(recommendation.scheduledCourses)}
     </section>
   `;
 }
@@ -410,6 +426,12 @@ async function handleContentChange(event) {
     state.importPreview = buildEduokImportPreview(await file.text(), state.data.students);
     renderImports();
     refreshIcons();
+    return;
+  }
+  if (event.target.id === "roadmap-consultation") {
+    state.selectedConsultationId = event.target.value;
+    renderTimetable();
+    refreshIcons();
   }
 }
 
@@ -470,11 +492,16 @@ function openLearningRecordModal() {
 
 function openConsultationModal() {
   const grades = ["초1", "초2", "초3", "초4", "초5", "초6", "중1", "중2", "중3", "고1", "고2", "고3"];
+  const schoolGoals = ["영재학교", "과학고", "자사고", "국제고", "외고", "일반고"];
   openModal("입학 상담 등록", `
     <form id="consultation-form">
       <div class="form-grid">
         <label class="field"><span>학생 이름</span><input name="applicantName" class="input" maxlength="40" autocomplete="off" required /></label>
         <label class="field"><span>학년</span><select name="grade" class="select" required><option value="">선택</option>${grades.map((item) => `<option>${item}</option>`).join("")}</select></label>
+        <label class="field"><span>목표 학교</span><select name="targetSchool" class="select" required><option value="">선택</option>${schoolGoals.map((item) => `<option>${item}</option>`).join("")}</select></label>
+        <label class="field"><span>상담 기준 월</span><input name="consultationMonth" class="input" type="month" value="${todayDate().slice(0, 7)}" required /></label>
+        <label class="field"><span>수학 진도</span><input name="mathProgress" class="input" maxlength="40" placeholder="예: 중3-2학기" /></label>
+        <label class="field"><span>과학 진도</span><input name="scienceProgress" class="input" maxlength="40" placeholder="예: 중2-2학기" /></label>
         <label class="field"><span>상담일</span><input name="consultedAt" class="input" type="date" value="${todayDate()}" required /></label>
         <label class="field"><span>상태</span><select name="status" class="select">${option("scheduled", "상담 예정", "scheduled")}${option("review", "결과 검토", "scheduled")}${option("completed", "완료", "scheduled")}</select></label>
         <label class="field"><span>진단평가</span><select name="diagnosticLabel" class="select"><option>평가 예정</option><option>진단 완료</option><option>진단 면제</option></select></label>
@@ -549,6 +576,10 @@ async function saveConsultation(form) {
   const record = {
     applicantName: values.applicantName.trim(),
     grade: values.grade,
+    targetSchool: values.targetSchool,
+    consultationMonth: values.consultationMonth,
+    mathProgress: values.mathProgress.trim(),
+    scienceProgress: values.scienceProgress.trim(),
     consultedAt: values.consultedAt,
     status: values.status,
     diagnosticLabel: values.diagnosticLabel,
@@ -592,6 +623,115 @@ function setModalStatus(message, error = true) {
 
 function todayDate() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+}
+
+function buildRecommendation(consultation, classes) {
+  const profiles = {
+    "영재학교": ["수학", "과학"],
+    "과학고": ["수학", "과학"],
+    "자사고": ["수학", "과학", "영어", "국어"],
+    "국제고": ["영어", "국어", "사회"],
+    "외고": ["영어", "국어", "사회"],
+    "일반고": ["수학", "영어", "국어", "과학"]
+  };
+  const subjects = profiles[consultation.targetSchool] || [...new Set(classes.map(courseSubject).filter(Boolean))];
+  const progressBySubject = {
+    "수학": stageRank(consultation.mathProgress),
+    "과학": stageRank(consultation.scienceProgress)
+  };
+  const courses = classes.filter((item) => {
+    const subject = courseSubject(item);
+    if (!subjects.includes(subject)) return false;
+    if (Array.isArray(item.targetSchools) && item.targetSchools.length && !item.targetSchools.includes(consultation.targetSchool)) return false;
+    const completedRank = progressBySubject[subject] || 0;
+    const itemRank = stageRank(item.stage || item.level || item.name);
+    return !completedRank || !itemRank || itemRank > completedRank;
+  }).sort((a, b) => {
+    const subjectOrder = subjects.indexOf(courseSubject(a)) - subjects.indexOf(courseSubject(b));
+    if (subjectOrder) return subjectOrder;
+    return (Number(a.roadmapOrder) || stageRank(a.stage || a.level || a.name)) - (Number(b.roadmapOrder) || stageRank(b.stage || b.level || b.name));
+  });
+  const month = consultation.consultationMonth || String(consultation.consultedAt || "").slice(0, 7);
+  const scheduledCourses = courses.filter((item) => isCourseOpenInMonth(item, month));
+  return { subjects, courses, scheduledCourses };
+}
+
+function roadmapMarkup(recommendation) {
+  if (!recommendation.courses.length) return `<div class="empty-roadmap"><strong>조건에 맞는 개설 과정이 없습니다.</strong><span>수업·반에 과목, 대상 학교와 과정 단계를 등록하면 자동으로 연결됩니다.</span></div>`;
+  return `<div class="roadmap-board">${recommendation.subjects.map((subject) => {
+    const courses = recommendation.courses.filter((item) => courseSubject(item) === subject);
+    if (!courses.length) return "";
+    return `<div class="roadmap-lane"><div class="roadmap-lane-title"><span class="subject-swatch ${subjectClass(subject)}"></span><strong>${e(subject)}</strong></div><div class="roadmap-track">${courses.map((item, index) => `<article class="roadmap-course ${subjectClass(subject)}"><span>${e(coursePeriod(item, index))}</span><strong>${e(item.name)}</strong><small>${e((item.teacherNames || []).join(", ") || "담당 미정")}</small></article>`).join("")}</div></div>`;
+  }).join("")}</div>`;
+}
+
+function weeklyScheduleMarkup(courses) {
+  const days = ["월", "화", "수", "목", "금", "토", "일"];
+  const sessions = courses.flatMap((course) => courseSessions(course).map((session) => ({ ...session, course })));
+  if (!sessions.length) return `<div class="empty-roadmap"><strong>배치할 수업 시간이 없습니다.</strong><span>개설 수업에 요일과 시작·종료 시간을 등록해 주세요.</span></div>`;
+  const cells = Array.from({ length: 26 * 7 }, (_, index) => `<span class="schedule-cell" style="grid-column:${(index % 7) + 2};grid-row:${Math.floor(index / 7) + 2}"></span>`).join("");
+  const times = Array.from({ length: 14 }, (_, index) => `<span class="schedule-time" style="grid-column:1;grid-row:${index * 2 + 2}">${String(index + 9).padStart(2, "0")}:00</span>`).join("");
+  const events = sessions.map(({ course, day, start, end }) => {
+    const dayIndex = days.indexOf(day);
+    const startMinutes = timeMinutes(start);
+    const endMinutes = timeMinutes(end);
+    if (dayIndex < 0 || startMinutes < 540 || startMinutes >= 1320) return "";
+    const row = Math.floor((startMinutes - 540) / 30) + 2;
+    const span = Math.max(1, Math.ceil((Math.min(endMinutes, 1320) - startMinutes) / 30));
+    return `<article class="schedule-event ${subjectClass(courseSubject(course))}" style="grid-column:${dayIndex + 2};grid-row:${row} / span ${span}"><strong>${e(course.name)}</strong><span>${e(start)}~${e(end)}</span><small>${e((course.teacherNames || []).join(", ") || "담당 미정")}</small></article>`;
+  }).join("");
+  return `<div class="schedule-panel"><div class="schedule-scroll"><div class="weekly-grid"><span class="schedule-corner"></span>${days.map((day, index) => `<strong class="schedule-day" style="grid-column:${index + 2}">${day}</strong>`).join("")}${times}${cells}${events}</div></div><div class="schedule-list"><strong>자동 선택 수업</strong>${sessions.map(({ course, day, start, end }) => `<span><i class="subject-swatch ${subjectClass(courseSubject(course))}"></i>${e(day)} ${e(start)}~${e(end)} · ${e(course.name)}</span>`).join("")}</div></div>`;
+}
+
+function courseSubject(item) {
+  const text = `${item.category || ""} ${item.subject || ""} ${item.name || ""}`;
+  return ["수학", "과학", "영어", "국어", "사회"].find((subject) => text.includes(subject)) || item.category || item.subject || "기타";
+}
+
+function subjectClass(subject) {
+  return { "수학": "subject-math", "과학": "subject-science", "영어": "subject-english", "국어": "subject-korean", "사회": "subject-social" }[subject] || "subject-other";
+}
+
+function stageRank(value) {
+  const text = String(value || "");
+  const match = text.match(/([초중고])(\d)/);
+  if (!match) return 0;
+  const base = { "초": 0, "중": 6, "고": 9 }[match[1]] + Number(match[2]);
+  const semester = /(?:-|\s)(2)|2학기/.test(text) ? 2 : 1;
+  return base * 2 + semester;
+}
+
+function isCourseOpenInMonth(item, month) {
+  if (!month || (!item.openFrom && !item.openUntil)) return true;
+  return (!item.openFrom || month >= item.openFrom) && (!item.openUntil || month <= item.openUntil);
+}
+
+function coursePeriod(item, index) {
+  if (item.openFrom || item.openUntil) return `${item.openFrom || "현재"} ~ ${item.openUntil || "계속"}`;
+  return item.stage || item.level || `${index + 1}단계`;
+}
+
+function courseSessions(item) {
+  if (Array.isArray(item.sessions) && item.sessions.length) {
+    return item.sessions.map((session) => ({ day: session.day, start: session.start, end: session.end || addMinutes(session.start, item.durationMinutes || 120) }));
+  }
+  const schedule = String(item.schedule || "");
+  const timeMatches = [...schedule.matchAll(/(\d{1,2}):(\d{2})/g)];
+  if (!timeMatches.length) return [];
+  const start = `${timeMatches[0][1].padStart(2, "0")}:${timeMatches[0][2]}`;
+  const end = timeMatches[1] ? `${timeMatches[1][1].padStart(2, "0")}:${timeMatches[1][2]}` : addMinutes(start, item.durationMinutes || 120);
+  const dayText = schedule.slice(0, timeMatches[0].index);
+  return [...new Set([...dayText].filter((character) => "월화수목금토일".includes(character)))].map((day) => ({ day, start, end }));
+}
+
+function timeMinutes(value) {
+  const [hour, minute] = String(value || "0:0").split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function addMinutes(value, amount) {
+  const total = timeMinutes(value) + amount;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function studentRow(student) {
