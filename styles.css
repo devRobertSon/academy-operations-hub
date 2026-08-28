@@ -321,6 +321,59 @@ body.modal-open { overflow: hidden; }
 .modal-status.error { color: var(--danger); }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 
+.roadmap-control { display: grid; grid-template-columns: minmax(220px, .65fr) minmax(0, 1.35fr); gap: 20px; padding: 18px; border: 1px solid var(--line); background: white; }
+.roadmap-student-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.roadmap-student-summary div { min-width: 0; padding: 8px 14px; border-left: 1px solid var(--line); }
+.roadmap-student-summary span, .roadmap-student-summary strong { display: block; overflow-wrap: anywhere; }
+.roadmap-student-summary span { color: var(--ink-500); font-size: 10px; }
+.roadmap-student-summary strong { margin-top: 5px; font-size: 12px; }
+.recommendation-banner { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 14px 16px; border-left: 3px solid var(--blue-600); background: var(--blue-050); }
+.recommendation-banner > svg { width: 20px; height: 20px; flex: 0 0 auto; color: var(--blue-700); }
+.recommendation-banner strong, .recommendation-banner span { display: block; }
+.recommendation-banner strong { font-size: 12px; }
+.recommendation-banner span { margin-top: 3px; color: var(--ink-500); font-size: 11px; }
+.roadmap-board { overflow: hidden; border: 1px solid var(--line); background: white; }
+.roadmap-lane { display: grid; grid-template-columns: 110px minmax(0, 1fr); border-bottom: 1px solid var(--line); }
+.roadmap-lane:last-child { border-bottom: 0; }
+.roadmap-lane-title { display: flex; align-items: center; gap: 8px; padding: 14px; background: #f8fafc; }
+.subject-swatch { width: 10px; height: 10px; display: inline-block; flex: 0 0 auto; border-radius: 2px; background: #8b97a8; }
+.roadmap-track { min-width: 0; display: flex; align-items: stretch; gap: 8px; overflow-x: auto; padding: 10px; }
+.roadmap-course { min-width: 160px; flex: 1 0 160px; display: flex; flex-direction: column; padding: 10px 12px; border: 1px solid var(--line); border-top-width: 3px; background: white; }
+.roadmap-course span, .roadmap-course small { color: var(--ink-500); font-size: 9px; }
+.roadmap-course strong { margin: 5px 0; font-size: 12px; }
+.subject-math { border-color: #4f8fce; }
+.subject-science { border-color: #e88769; }
+.subject-english { border-color: #8176c9; }
+.subject-korean { border-color: #3f9981; }
+.subject-social { border-color: #ca8b3f; }
+.subject-other { border-color: #8b97a8; }
+.subject-swatch.subject-math { background: #4f8fce; }
+.subject-swatch.subject-science { background: #e88769; }
+.subject-swatch.subject-english { background: #8176c9; }
+.subject-swatch.subject-korean { background: #3f9981; }
+.subject-swatch.subject-social { background: #ca8b3f; }
+.empty-roadmap { display: grid; gap: 5px; padding: 36px 20px; border: 1px solid var(--line); background: white; text-align: center; }
+.empty-roadmap strong { font-size: 13px; }
+.empty-roadmap span { color: var(--ink-500); font-size: 11px; }
+.schedule-panel { border: 1px solid var(--line); background: white; }
+.schedule-scroll { width: 100%; overflow-x: auto; }
+.weekly-grid { min-width: 790px; display: grid; grid-template-columns: 54px repeat(7, minmax(92px, 1fr)); grid-template-rows: 36px repeat(26, 24px); position: relative; }
+.schedule-corner, .schedule-day { grid-row: 1; z-index: 2; display: grid; place-items: center; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #f8fafc; font-size: 11px; }
+.schedule-corner { grid-column: 1; }
+.schedule-time { z-index: 2; padding: 3px 7px 0 0; border-right: 1px solid var(--line); color: var(--ink-500); font-size: 9px; text-align: right; }
+.schedule-cell { border-right: 1px solid var(--line); border-bottom: 1px solid #e9eef4; }
+.schedule-event { z-index: 3; min-width: 0; margin: 2px; padding: 6px 7px; overflow: hidden; border: 1px solid; border-radius: 4px; background: #e6f1fc; color: var(--ink-900); }
+.schedule-event.subject-science { background: #fde9e1; }
+.schedule-event.subject-english { background: #eeebfb; }
+.schedule-event.subject-korean { background: #e5f4ef; }
+.schedule-event.subject-social { background: #fbefdf; }
+.schedule-event strong, .schedule-event span, .schedule-event small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-event strong { font-size: 10px; }
+.schedule-event span, .schedule-event small { margin-top: 2px; font-size: 8px; }
+.schedule-list { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 14px; border-top: 1px solid var(--line); font-size: 10px; }
+.schedule-list > strong { width: 100%; font-size: 11px; }
+.schedule-list span { display: inline-flex; align-items: center; gap: 6px; }
+
 @media (max-width: 960px) {
   .metric-strip { grid-template-columns: repeat(2, 1fr); }
   .metric:nth-child(2) { border-right: 0; }
@@ -359,6 +412,13 @@ body.modal-open { overflow: hidden; }
   .form-grid { grid-template-columns: 1fr; gap: 14px; }
   .field-wide { grid-column: auto; }
   .form-actions .button { flex: 1; }
+  .roadmap-control { grid-template-columns: 1fr; gap: 14px; padding: 14px; }
+  .roadmap-student-summary { grid-template-columns: 1fr 1fr; }
+  .roadmap-student-summary div { border-top: 1px solid var(--line); border-left: 0; padding: 10px 6px; }
+  .roadmap-student-summary div:nth-child(odd) { border-right: 1px solid var(--line); }
+  .roadmap-lane { grid-template-columns: 1fr; }
+  .roadmap-lane-title { padding: 10px 12px; }
+  .roadmap-course { min-width: 148px; flex-basis: 148px; }
 }
 
 @media print {
