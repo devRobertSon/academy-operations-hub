@@ -8,7 +8,7 @@ firebase-debug.log*
 !.env.example
 
 # Student and consultation exports must never be committed.
-data/
+/data/
 imports/
 exports/
 *.csv
@@ -16,3 +16,4 @@ exports/
 *.xls
 *.pdf
 *.zip
+
