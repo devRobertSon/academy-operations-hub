@@ -127,10 +127,18 @@ export async function createFirebaseStore(config) {
     return Object.fromEntries(loaded);
   }
 
+  async function createDocument(path, data) {
+    const reference = await firestoreSdk.addDoc(firestoreSdk.collection(db, path), {
+      ...data,
+      createdAt: firestoreSdk.serverTimestamp()
+    });
+    return { id: reference.id };
+  }
+
   async function logout() {
     await authSdk.signOut(auth);
   }
 
-  return { signIn, restoreSession, loadWorkspace, logout };
+  return { signIn, restoreSession, loadWorkspace, createDocument, logout };
 }
 
