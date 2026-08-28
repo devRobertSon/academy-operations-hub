@@ -9,7 +9,7 @@ import {
   demoUsers
 } from "./data/demo-data.js?v=20260827-2";
 import { buildEduokImportPreview } from "./lib/eduok-import.js";
-import { createFirebaseStore } from "./lib/firebase-store.js?v=20260827-3";
+import { createFirebaseStore } from "./lib/firebase-store.js?v=20260828-1";
 
 const state = {
   user: null,
@@ -33,6 +33,7 @@ const elements = {
   pageEyebrow: document.querySelector("#page-eyebrow"),
   topbarActions: document.querySelector("#topbar-actions"),
   content: document.querySelector("#page-content"),
+  modalRoot: document.querySelector("#modal-root"),
   toastRoot: document.querySelector("#toast-root")
 };
 
@@ -107,9 +108,16 @@ function bindStaticEvents() {
     elements.workspace.classList.remove("menu-open");
     render();
   });
+  elements.topbarActions.addEventListener("click", handleActionClick);
   elements.content.addEventListener("click", handleContentClick);
   elements.content.addEventListener("input", handleContentInput);
   elements.content.addEventListener("change", handleContentChange);
+  elements.modalRoot.addEventListener("click", handleModalClick);
+  elements.modalRoot.addEventListener("change", handleModalChange);
+  elements.modalRoot.addEventListener("submit", handleModalSubmit);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.modalRoot.childElementCount) closeModal();
+  });
 }
 
 async function ensureFirebaseReady() {
@@ -268,7 +276,7 @@ function renderClasses() {
 
 function renderLearning() {
   setPage("학사 · 학습 기록", "평가 · 진도");
-  elements.topbarActions.innerHTML = `<button class="button button-primary" type="button" data-toast="평가·진도 입력 화면은 다음 단계에서 Firestore 저장과 연결합니다."><i data-lucide="plus"></i>기록 입력</button>`;
+  elements.topbarActions.innerHTML = `<button class="button button-primary" type="button" data-action="open-learning-record"><i data-lucide="plus"></i>기록 입력</button>`;
   elements.content.innerHTML = `
     <section class="section">
       <div class="section-header"><div><h2 class="section-title">단원평가</h2><span class="section-meta">학생별 평가 결과</span></div></div>
@@ -284,7 +292,7 @@ function renderLearning() {
 function renderAdmissions() {
   if (!hasRole("academic_admin") && !hasRole("counselor")) return renderDashboard();
   setPage("입학 · 상담", "입학 상담");
-  elements.topbarActions.innerHTML = `<button class="button button-primary" type="button" data-toast="상담 등록 양식은 진단평가 서식을 받은 뒤 연결합니다."><i data-lucide="plus"></i>상담 등록</button>`;
+  elements.topbarActions.innerHTML = `<button class="button button-primary" type="button" data-action="open-consultation"><i data-lucide="plus"></i>상담 등록</button>`;
   elements.content.innerHTML = `
     <div class="metric-strip">
       ${metric("상담 예정", `${state.data.consultations.filter((item) => item.status === "scheduled").length}건`, "일정 등록")}
@@ -354,6 +362,26 @@ function handleContentClick(event) {
   if (toastButton) showToast(toastButton.dataset.toast);
 }
 
+function handleActionClick(event) {
+  const action = event.target.closest("[data-action]")?.dataset.action;
+  if (action === "open-learning-record") openLearningRecordModal();
+  if (action === "open-consultation") openConsultationModal();
+}
+
+function handleModalClick(event) {
+  if (event.target.closest("[data-modal-close]") || event.target.matches(".modal-overlay")) closeModal();
+}
+
+function handleModalChange(event) {
+  if (event.target.id === "record-type") syncLearningRecordFields();
+}
+
+async function handleModalSubmit(event) {
+  event.preventDefault();
+  if (event.target.id === "learning-record-form") await saveLearningRecord(event.target);
+  if (event.target.id === "consultation-form") await saveConsultation(event.target);
+}
+
 function handleContentInput(event) {
   if (event.target.id === "student-search") {
     state.search = event.target.value;
@@ -409,6 +437,161 @@ function visibleAssessmentResults() {
 function visibleProgressRecords() {
   if (!hasRole("teacher") || hasRole("academic_admin")) return state.data.progressRecords;
   return state.data.progressRecords.filter((item) => item.teacherUid === state.user.uid);
+}
+
+function openLearningRecordModal() {
+  const students = visibleStudents();
+  const classes = visibleClasses();
+  const ready = students.length && classes.length;
+  openModal("평가·진도 기록 입력", `
+    <form id="learning-record-form">
+      <div class="form-grid">
+        <label class="field field-wide"><span>기록 구분</span><select id="record-type" name="recordType" class="select">${option("assessment", "단원평가", "assessment")}${option("progress", "진도", "assessment")}</select></label>
+        <label class="field"><span>학생</span><select name="studentId" class="select" required>${students.map((item) => `<option value="${e(item.id)}">${e(item.name)} · ${e(item.grade || "학년 미등록")}</option>`).join("")}</select></label>
+        <label class="field"><span>수업</span><select name="classId" class="select" required>${classes.map((item) => `<option value="${e(item.id)}">${e(item.name)}</option>`).join("")}</select></label>
+        <div class="form-grid field-wide" data-record-fields="assessment">
+          <label class="field field-wide"><span>평가명</span><input name="title" class="input" maxlength="80" placeholder="예: 일차함수 단원평가" required /></label>
+          <label class="field"><span>점수</span><input name="score" class="input" type="number" min="0" step="1" required /></label>
+          <label class="field"><span>총점</span><input name="maxScore" class="input" type="number" min="1" step="1" value="100" required /></label>
+          <label class="field field-wide"><span>평가일</span><input name="assessedAt" class="input" type="date" value="${todayDate()}" required /></label>
+        </div>
+        <div class="form-grid field-wide" data-record-fields="progress" hidden>
+          <label class="field"><span>교재</span><input name="material" class="input" maxlength="80" placeholder="예: 개념서" disabled required /></label>
+          <label class="field"><span>진도</span><input name="unit" class="input" maxlength="120" placeholder="예: 일차함수 3단원" disabled required /></label>
+          <label class="field field-wide"><span>메모</span><textarea name="note" class="textarea" rows="3" maxlength="500" disabled></textarea></label>
+          <label class="field field-wide"><span>기록일</span><input name="recordedAt" class="input" type="date" value="${todayDate()}" disabled required /></label>
+        </div>
+      </div>
+      ${ready ? "" : `<p class="modal-note">기록할 학생과 수업을 먼저 등록해 주세요.</p>`}
+      ${modalActions("기록 저장", !ready)}
+    </form>
+  `);
+}
+
+function openConsultationModal() {
+  const grades = ["초1", "초2", "초3", "초4", "초5", "초6", "중1", "중2", "중3", "고1", "고2", "고3"];
+  openModal("입학 상담 등록", `
+    <form id="consultation-form">
+      <div class="form-grid">
+        <label class="field"><span>학생 이름</span><input name="applicantName" class="input" maxlength="40" autocomplete="off" required /></label>
+        <label class="field"><span>학년</span><select name="grade" class="select" required><option value="">선택</option>${grades.map((item) => `<option>${item}</option>`).join("")}</select></label>
+        <label class="field"><span>상담일</span><input name="consultedAt" class="input" type="date" value="${todayDate()}" required /></label>
+        <label class="field"><span>상태</span><select name="status" class="select">${option("scheduled", "상담 예정", "scheduled")}${option("review", "결과 검토", "scheduled")}${option("completed", "완료", "scheduled")}</select></label>
+        <label class="field"><span>진단평가</span><select name="diagnosticLabel" class="select"><option>평가 예정</option><option>진단 완료</option><option>진단 면제</option></select></label>
+        <label class="field"><span>추천 반</span><input name="recommendedClass" class="input" maxlength="80" placeholder="미정" /></label>
+        <label class="field field-wide"><span>상담 내용</span><textarea name="note" class="textarea" rows="4" maxlength="1000" placeholder="상담 내용과 요청 사항을 입력하세요."></textarea></label>
+      </div>
+      ${modalActions("상담 저장")}
+    </form>
+  `);
+}
+
+function openModal(title, body) {
+  elements.modalRoot.innerHTML = `<div class="modal-overlay"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header class="modal-header"><h2 id="modal-title">${e(title)}</h2><button class="icon-button" type="button" data-modal-close aria-label="닫기" title="닫기"><i data-lucide="x"></i></button></header><div class="modal-body">${body}</div></section></div>`;
+  document.body.classList.add("modal-open");
+  refreshIcons();
+  elements.modalRoot.querySelector("input:not([disabled]), select:not([disabled])")?.focus();
+}
+
+function closeModal() {
+  elements.modalRoot.innerHTML = "";
+  document.body.classList.remove("modal-open");
+}
+
+function modalActions(label, disabled = false) {
+  return `<p class="modal-status" role="status"></p><div class="form-actions"><button class="button button-secondary" type="button" data-modal-close>취소</button><button class="button button-primary" type="submit" ${disabled ? "disabled" : ""}>${e(label)}</button></div>`;
+}
+
+function syncLearningRecordFields() {
+  const type = elements.modalRoot.querySelector("#record-type")?.value;
+  elements.modalRoot.querySelectorAll("[data-record-fields]").forEach((group) => {
+    const active = group.dataset.recordFields === type;
+    group.hidden = !active;
+    group.querySelectorAll("input, textarea, select").forEach((field) => { field.disabled = !active; });
+  });
+}
+
+async function saveLearningRecord(form) {
+  const values = Object.fromEntries(new FormData(form));
+  const student = state.data.students.find((item) => item.id === values.studentId);
+  const classItem = state.data.classes.find((item) => item.id === values.classId);
+  if (!student || !classItem) return setModalStatus("학생과 수업 정보를 다시 선택해 주세요.");
+
+  const common = {
+    studentId: student.id,
+    studentName: student.name,
+    classId: classItem.id,
+    className: classItem.name,
+    teacherUid: hasRole("teacher") && !hasRole("academic_admin") ? state.user.uid : classItem.teacherUids?.[0] || state.user.uid,
+    createdBy: state.user.uid
+  };
+  let collection;
+  let record;
+  if (values.recordType === "assessment") {
+    if (Number(values.score) > Number(values.maxScore)) return setModalStatus("점수는 총점보다 클 수 없습니다.");
+    collection = "assessmentResults";
+    record = { ...common, title: values.title.trim(), score: Number(values.score), maxScore: Number(values.maxScore), assessedAt: values.assessedAt };
+  } else {
+    collection = "progressRecords";
+    record = { ...common, material: values.material.trim(), unit: values.unit.trim(), note: values.note.trim(), recordedAt: values.recordedAt };
+  }
+  await persistModalRecord(form, collection, record, () => {
+    state.data[collection].unshift(record);
+    closeModal();
+    renderLearning();
+    refreshIcons();
+    showToast("학습 기록을 저장했습니다.");
+  });
+}
+
+async function saveConsultation(form) {
+  const values = Object.fromEntries(new FormData(form));
+  const record = {
+    applicantName: values.applicantName.trim(),
+    grade: values.grade,
+    consultedAt: values.consultedAt,
+    status: values.status,
+    diagnosticLabel: values.diagnosticLabel,
+    recommendedClass: values.recommendedClass.trim() || "미정",
+    note: values.note.trim(),
+    createdBy: state.user.uid
+  };
+  await persistModalRecord(form, "consultations", record, () => {
+    state.data.consultations.unshift(record);
+    closeModal();
+    renderAdmissions();
+    refreshIcons();
+    showToast("상담을 등록했습니다.");
+  });
+}
+
+async function persistModalRecord(form, collection, record, onSuccess) {
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  setModalStatus("저장하고 있습니다.", false);
+  try {
+    if (state.store) {
+      const saved = await state.store.createDocument(collection, record);
+      record.id = saved.id;
+    } else {
+      record.id = `demo-${Date.now()}`;
+    }
+    onSuccess();
+  } catch (error) {
+    submit.disabled = false;
+    setModalStatus(error.message || "저장하지 못했습니다.");
+  }
+}
+
+function setModalStatus(message, error = true) {
+  const status = elements.modalRoot.querySelector(".modal-status");
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle("error", error);
+}
+
+function todayDate() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 }
 
 function studentRow(student) {
